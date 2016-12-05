@@ -37,6 +37,9 @@ protected:
         }
 
         event_stream_base& _owner;
+        
+        event_stream_guard(const event_stream_guard&);
+        event_stream_guard& operator=(const event_stream_guard&);
     };
 public:
     event_stream_base() :
@@ -105,6 +108,7 @@ protected:
     void after_emit()
     {
         if (_has_removed) {
+            _has_removed = false;
             erase_observer(_observers);
         }
 
