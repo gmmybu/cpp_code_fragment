@@ -2,7 +2,7 @@
 
 event_stream.h
 
-simulate C# event, to simplify event notify. you can link multiple event_streams to implement reactive style programing...
+simulate C# event, to simplify event notify. you can link multiple event_streams to implement reactive style programing.
 
 sample:
 
