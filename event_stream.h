@@ -50,6 +50,8 @@ public:
 
     uint32_t subscribe(func_type&& t)
     {
+        if (t == nullptr) return 0;
+    
         uint32_t guid = _guid_index++;
         event_observer ob = { std::move(t), guid, false };
         append_observer(ob);
@@ -58,7 +60,9 @@ public:
 
     void unsubscribe(uint32_t guid)
     {
-        remove_observer(guid);
+        if (guid != 0) {
+            remove_observer(guid);
+        }
     }
 protected:
     void append_observer(event_observer& ob)
