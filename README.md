@@ -25,3 +25,11 @@ forward on_player_end event:
             on_audio_play_end.emit();
         } 
     });
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+lru_cache.h
+
+when used with pointer type, later call to 'query' may cause previous returned values by 'query' invalid, use it carefully.
+
+but you can add life-cycle management whith an extra 'release' semantics to get more detailed control over it.
