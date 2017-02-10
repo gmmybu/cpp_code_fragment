@@ -25,7 +25,37 @@ forward on_player_end event:
             on_audio_play_end.emit();
         } 
     });
+    
+warning : you should not delete any paramter either directly or indirectly in any callback, because later callbacks may use them. a simple solution is just pass by value.
 
+here is the sample:
+    
+    std::vector<std::string> _texts;
+    
+    event_stream<void(const std::string&)> event_with_text;
+    
+    /// first callback
+    event_with_text.subscribe([](const std::string& text) {
+        for (auto iter = _texts.begin(); iter != _text.end(); iter++) {
+            if (*iter == text) {
+                _texts.erase(iter);
+                break;
+            }
+        }
+    });
+    
+    /// second callback
+    event_with_text.subscribe([](const std::string& text) {
+        printf("%s\n", text.c_str());
+    });
+   
+    /// when called like this, no problem
+    event_with_text.emit("hello");
+    
+    /// when called like this, big problem
+    auto iter = _texts.begin();
+    event_with_text.emit(*iter);
+    
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 lru_cache.h
