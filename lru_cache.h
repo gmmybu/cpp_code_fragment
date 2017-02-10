@@ -45,10 +45,10 @@ class lru_cache_impl : public lru_cache_interface<K, V>
         lru_cache_node* _next;
     };
 public:
-    lru_cache_impl(uint32_t max_cache_count, C&& creator = C(), D&& deletor = D()) :
+    lru_cache_impl(uint32_t max_cache_count, C creator = C(), D deletor = D()) :
         _max_cache_count(max_cache_count),
-        _creator(std::move(creator)),
-        _deletor(std::move(deletor))
+        _creator(creator),
+        _deletor(deletor)
     {
         _head._next = _head._prev = &_tail;
         _tail._next = _tail._prev = &_head;
@@ -155,14 +155,14 @@ class lru_cache
 {
 public:
     template<class C, class D>
-    lru_cache(uint32_t max_cache_count, C&& creator = C(), D&& deletor = D()) :
-        _impl(new lru_cache_internal::lru_cache_impl<K, V, std::decay<C>::type, std::decay<D>::type>(max_cache_count, std::forward<C>(creator), std::forward<D>(deletor)))
+    lru_cache(uint32_t max_cache_count, C creator, D deletor) :
+        _impl(new lru_cache_internal::lru_cache_impl<K, V, C, D>(max_cache_count, creator, deletor))
     {
     }
 
     template<class C>
-    lru_cache(uint32_t max_cache_count, C&& creator = C()) :
-        _impl(new lru_cache_internal::lru_cache_impl<K, V, std::decay<C>::type>(max_cache_count, std::forward<C>(creator)))
+    lru_cache(uint32_t max_cache_count, C creator) :
+        _impl(new lru_cache_internal::lru_cache_impl<K, V, C>(max_cache_count, creator))
     {
     }
 
