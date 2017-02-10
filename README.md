@@ -60,7 +60,9 @@ here is the sample:
 
 lru_cache.h
 
-when used with pointer type, later call to 'query' may cause previous returned values by 'query' invalid, use it carefully.
+the algorithm is traditional, it uses a double_linked_list to record using order and a map to fast locate double_linked_list node. 
+
+when used with pointer type, later call to 'query' may cause previous returned pointer by 'query' invalid, use it carefully.
 
 but you can add life-cycle management whith an extra 'release' semantics to get more detailed control.
 
