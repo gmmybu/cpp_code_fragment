@@ -80,7 +80,6 @@ private:
         if (_size == _max_cache_count) {
             auto node = _tail._prev;
             detach(node, true);
-            delete node;
         }
 
         lru_cache_node* node = new lru_cache_node;
@@ -96,10 +95,7 @@ private:
         auto node = _head._next;
         while (node != &_tail) {
             auto next = node->_next;
-
             detach(node, true);
-            delete node;
-
             node = next;
         }
     }
@@ -110,7 +106,7 @@ private:
 
     uint32_t _size;
 
-    void attach(lru_cache_node* node, bool for_insert = false)
+    void attach(lru_cache_node* node, bool insert = false)
     {
         auto prev = &_head;
         auto next = _head._next;
@@ -119,22 +115,23 @@ private:
         node->_prev = prev;
         node->_next = next;
 
-        if (for_insert) {
+        if (insert) {
             _nodes.emplace(node->_key, node);
             _size++;
         }
     }
 
-    void detach(lru_cache_node* node, bool for_remove = false)
+    void detach(lru_cache_node* node, bool remove = false)
     {
         auto prev = node->_prev;
         auto next = node->_next;
         prev->_next = next;
         next->_prev = prev;
 
-        if (for_remove) {
+        if (remove) {
             _deletor(node->_val);
             _nodes.erase(node->_key);
+            delete node;
             _size--;
         }
     }
