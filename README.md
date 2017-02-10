@@ -38,24 +38,24 @@ lru_cache needs a creator and a deletor (can use default deletor), the creator r
 
 creator sample:
 
-template<class K, class V>
-bool sample_creator_function(const K& k, V& v);
+    template<class K, class V>
+    bool sample_creator_function(const K& k, V& v);
 
-template<class K, class V>
-struct sample_creator_functor
-{
-    bool operator()(const K& k, V& v);
-};
+    template<class K, class V>
+    struct sample_creator_functor
+    {
+        bool operator()(const K& k, V& v);
+    };
 
 deletor sample:
 
-template<class V>
-bool sample_deletor_function(const V& v);
+    template<class V>
+    bool sample_deletor_function(const V& v);
 
-template<class V>
-struct sample_deletor_functor
-{
-    bool operator()(const V& v);
-};
-
-
+    template<class V>
+    struct sample_deletor_functor
+    {
+        bool operator()(const V& v);
+    };
+    
+you can define it not same with these but should be compatible with these.
