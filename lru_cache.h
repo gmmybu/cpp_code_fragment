@@ -29,7 +29,7 @@ template<class V>
 struct default_deletor
 {
     typedef typename std::_If<std::is_pointer<V>::value,
-        std::default_delete<V>,
+        std::default_delete<typename std::remove_pointer<V>::type>,
         do_nothing_deletor<V>>::type type;
 };
 
