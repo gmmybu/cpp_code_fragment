@@ -147,7 +147,7 @@ class event_stream<void()> : public event_stream_base<void()>
 public:
     void emit()
     {
-        event_stream_guard(*this);
+        event_stream_guard guard(*this);
         for (auto& ob : _observers) {
             if (!ob._removed) {
                 ob._handler();
@@ -163,7 +163,7 @@ class event_stream<void(P1)> : public event_stream_base<void(P1)>
 public:
     void emit(P1 p1)
     {
-        event_stream_guard(*this);
+        event_stream_guard guard(*this);
         for (auto& ob : _observers) {
             if (!ob._removed) {
                 ob._handler(p1);
@@ -179,7 +179,7 @@ class event_stream<void(P1, P2)> : public event_stream_base<void(P1, P2)>
 public:
     void emit(P1 p1, P2 p2)
     {
-        event_stream_guard(*this);
+        event_stream_guard guard(*this);
         for (auto& ob : _observers) {
             if (!ob._removed) {
                 ob._handler(p1, p2);
@@ -195,7 +195,7 @@ class event_stream<void(P1, P2, P3)> : public event_stream_base<void(P1, P2, P3)
 public:
     void emit(P1 p1, P2 p2, P3 p3)
     {
-        event_stream_guard(*this);
+        event_stream_guard guard(*this);
         for (auto& ob : _observers) {
             if (!ob._removed) {
                 ob._handler(p1, p2, p3);
