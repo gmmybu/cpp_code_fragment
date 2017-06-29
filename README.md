@@ -97,6 +97,7 @@ you can define it not same with these but should be compatible with these.
 delayed_runner.h
 
 it's not a brand new idea, you may see it several times. it uses auto executed class destructor to run some code when it's going out of its scope. here's an example:
+
     HANDLE enum_handle = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (enum_handle == INVALID_HANDLE_VALUE)
         return;
