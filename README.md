@@ -104,3 +104,8 @@ it's not a brand new idea, you may see it several times. it uses auto executed c
     will_delayed_run_for_sure([=] { CloseHandle(enum_handle); });
     /// other codes that use enum_handle, and you will not have to remember to release enum_handle
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+qrcode_generator.h
+
+it depends on https://github.com/fukuchi/libqrencode，converts original one to one dot-pixel format to ordinary one to multiple dot-pixel format with border.
