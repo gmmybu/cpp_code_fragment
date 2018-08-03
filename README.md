@@ -109,3 +109,9 @@ it's not a brand new idea, you may see it several times. it uses auto executed c
 qrcode_generator.h
 
 it depends on https://github.com/fukuchi/libqrencode, converts original one to one dot-pixel format to ordinary one to multiple dot-pixel format with border.
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+render_device
+
+simple wrapper for fast 2D render by DirectX11, it's just modified from DirectX11 samples tutorial07
