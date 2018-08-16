@@ -2,9 +2,116 @@
 #include "shared_com_ptr.h"
 #include "render_device.h"
 #include <d3d11.h>
-#include <d3dx11.h>
-#include <xnamath.h>
 #include <d3dcompiler.h>
+#include <xnamath.h>
+
+static const char vertex_shader_str[] =
+   "struct VS_INPUT                     \
+    {                                   \
+        float4 Pos : POSITION;          \
+        float2 Tex : TEXCOORD0;         \
+    };                                  \
+                                        \
+    struct PS_INPUT                     \
+    {                                   \
+        float4 Pos : SV_POSITION;       \
+        float2 Tex : TEXCOORD0;         \
+    };                                  \
+                                        \
+    PS_INPUT main(VS_INPUT input)       \
+    {                                   \
+        PS_INPUT output = (PS_INPUT)0;  \
+        output.Pos = input.Pos;         \
+        output.Tex = input.Tex;         \
+        return output;                  \
+    }";
+
+static const char pixel_shader_str[] =
+   "Texture2D txDiffuse : register(t0);                 \
+    SamplerState samLinear : register(s0);              \
+                                                        \
+    struct PS_INPUT                                     \
+    {                                                   \
+    float4 Pos : SV_POSITION;                           \
+    float2 Tex : TEXCOORD0;                             \
+    };                                                  \
+                                                        \
+    float4 main(PS_INPUT input) : SV_Target             \
+    {                                                   \
+        return txDiffuse.Sample(samLinear, input.Tex);  \
+    }";
+
+class shader_compiler
+{
+public:
+    static bool compile_vertex_shader(ID3DBlob** blob)
+    {
+        auto compile = get_compiler();
+        if (compile == NULL) return false;
+
+        shared_com_ptr<ID3DBlob> error;
+        HRESULT hr = compile(vertex_shader_str, sizeof(vertex_shader_str),
+            "vertex_shader_string", nullptr, nullptr, "main",
+            "vs_4_0", D3D10_SHADER_OPTIMIZATION_LEVEL1, 0, blob,
+            &error);
+
+        if (FAILED(hr)) {
+            if (error != nullptr) {
+                logger_error((char*)error->GetBufferPointer());
+            } else {
+                logger_error_va("compile vertex shader 0x%x", hr);
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    static bool compile_pixel_shader(ID3DBlob** blob)
+    {
+        auto compile = get_compiler();
+        if (compile == NULL) return false;
+
+        shared_com_ptr<ID3DBlob> error;
+        HRESULT hr = compile(pixel_shader_str, sizeof(pixel_shader_str),
+            "pixel_shader_string", nullptr, nullptr, "main",
+            "ps_4_0", D3D10_SHADER_OPTIMIZATION_LEVEL1, 0, blob,
+            &error);
+
+        if (FAILED(hr)) {
+            if (error != nullptr) {
+                logger_error((char*)error->GetBufferPointer());
+            } else {
+                logger_error_va("compile pixel shader 0x%x", hr);
+            }
+            return false;
+        }
+
+        return true;
+    }
+private:
+    static pD3DCompile get_compiler()
+    {
+        static pD3DCompile compile = NULL;
+        if (compile != NULL) return compile;
+
+        int  version = 49;
+        char compiler[40];
+        while (version-- > 30 && compile == NULL) {
+            sprintf_s(compiler, 40, "D3DCompiler_%02d.dll", version);
+
+            HMODULE module = LoadLibraryA(compiler);
+            if (module != NULL) {
+                compile = (pD3DCompile)GetProcAddress(module, "D3DCompile");
+                if (compile != NULL) {
+                    logger_info_va("compiler is %s", compiler);
+                }
+            }
+        }
+
+        return compile;
+    }
+};
 
 class render_texture_impl : public render_texture
 {
@@ -341,30 +448,11 @@ void render_device_impl::set_viewport(int32_t w, int32_t h)
     _context->RSSetViewports(1, &vp);
 }
 
-static HRESULT CompileShaderFromFile(WCHAR* name, LPCSTR entry_point, LPCSTR shader_model, ID3DBlob** output)
-{
-    WCHAR file[MAX_PATH];
-    get_file_at_program_path(file, name);
-
-    shared_com_ptr<ID3DBlob> error;
-    HRESULT hr = D3DX11CompileFromFile(file, NULL, NULL, entry_point, shader_model, 
-        D3DCOMPILE_ENABLE_STRICTNESS, 0, NULL, output, &error, NULL);
-    if (FAILED(hr)) {
-        if (error != nullptr) {
-            logger_error((char*)error->GetBufferPointer());
-        } else {
-            logger_error_va("compile shader 0x%x", hr);
-        }
-    }
-
-    return hr;
-}
-
 bool render_device_impl::create_vertex_shader()
 {
     shared_com_ptr<ID3DBlob> blob;
-    dd_checkd3d9_r(CompileShaderFromFile(L"shader.fx", "VS", "vs_4_0", &blob));
-
+    dd_checkbool_r(shader_compiler::compile_vertex_shader(&blob));
+    
     auto data = blob->GetBufferPointer();
     auto size = blob->GetBufferSize();
     dd_checkd3d9_r(_device->CreateVertexShader(data, size, NULL, &_vertexshader));
@@ -389,8 +477,8 @@ bool render_device_impl::create_vertex_layout(ID3DBlob* blob)
 bool render_device_impl::create_pixel_shader()
 {
     shared_com_ptr<ID3DBlob> blob;
-    dd_checkd3d9_r(CompileShaderFromFile(L"shader.fx","PS", "ps_4_0", &blob));
-
+    dd_checkbool_r(shader_compiler::compile_pixel_shader(&blob));
+    
     auto data = blob->GetBufferPointer();
     auto size = blob->GetBufferSize();
     dd_checkd3d9_r(_device->CreatePixelShader(data, size, NULL, &_pixelshader));
