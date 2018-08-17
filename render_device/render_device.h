@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <windows.h>
 
-// 格式为BGRA或BGRX
+// only support BGRA or BGRX
 class render_texture
 {
 public:
