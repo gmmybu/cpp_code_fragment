@@ -25,7 +25,7 @@ struct DoNothing_Deleter
 
 }
 
-template<class T, bool check_as_parameter, class Deleter>
+template<class T, class Deleter>
 class checked_ptr
 {
 protected:
@@ -96,11 +96,6 @@ public:
 
     operator T*() const
     {
-        if (check_as_parameter && _ptr == nullptr) {
-            logger_error_va("%s is nullptr when used as a parameter", _name);
-            abort();
-        }
-
         return _ptr;
     }
 protected:
@@ -111,48 +106,48 @@ private:
     checked_ptr& operator=(const checked_ptr& ptr);
 };
 
-template<class T, bool B, class D>
-bool operator==(const checked_ptr<T, B, D>& left, std::nullptr_t)
+template<class T, class D>
+bool operator==(const checked_ptr<T, D>& left, std::nullptr_t)
 {
     return left.empty();
 }
 
-template<class T, bool B, class D>
-bool operator==(std::nullptr_t, const checked_ptr<T, B, D>& right)
+template<class T, class D>
+bool operator==(std::nullptr_t, const checked_ptr<T, D>&& right)
 {
     return right.empty();
 }
 
-template<class T, bool B, class D>
-bool operator!=(const checked_ptr<T, B, D>& left, std::nullptr_t)
+template<class T, class D>
+bool operator!=(const checked_ptr<T, D>&& left, std::nullptr_t)
 {
     return !left.empty();
 }
 
-template<class T, bool B, class D>
-bool operator!=(std::nullptr_t, const checked_ptr<T, B, D>& right)
+template<class T, class D>
+bool operator!=(std::nullptr_t, const checked_ptr<T, D>&& right)
 {
     return !right.empty();
 }
 
-template<class T, bool check_as_parameter = true>
-class checked_release_ptr : public checked_ptr<T, check_as_parameter, checked_ptr_deleter::Release_Deleter<T>>
+template<class T>
+class checked_release_ptr : public checked_ptr<T, checked_ptr_deleter::Release_Deleter<T>>
 {
 public:
     checked_release_ptr(T* ptr, const char* name = typeid(T).name()) :
         checked_ptr(ptr, name) {}
 };
 
-template<class T, bool check_as_parameter = true>
-class checked_delete_ptr : public checked_ptr<T, check_as_parameter, checked_ptr_deleter::Default_Deleter<T>>
+template<class T>
+class checked_delete_ptr : public checked_ptr<T, checked_ptr_deleter::Default_Deleter<T>>
 {
 public:
     checked_delete_ptr(T* ptr, const char* name = typeid(T).name()) :
         checked_ptr(ptr, name) {}
 };
 
-template<class T, bool check_as_parameter = true>
-class checked_useonly_ptr : public checked_ptr<T, check_as_parameter, checked_ptr_deleter::DoNothing_Deleter<T>>
+template<class T>
+class checked_useonly_ptr : public checked_ptr<T, checked_ptr_deleter::DoNothing_Deleter<T>>
 {
 public:
     checked_useonly_ptr(T* ptr, const char* name = typeid(T).name()) :
