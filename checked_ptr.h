@@ -1,6 +1,7 @@
 #pragma once
 #include "trace.h"
 #include <typeinfo>
+#include <string.h>
 
 namespace checked_ptr_deleter {
 
@@ -29,11 +30,58 @@ class checked_ptr
 {
 protected:
     checked_ptr(T* ptr, const char* name) :
-        _ptr(ptr), _name(name) {}
+        _ptr(ptr), _name(name)
+    {
+        if (_name == nullptr) {
+            _name = "noname";
+        }
+
+        if (strncmp(_name, "class ", 6) == 0) {
+            _name += 6;
+        }
+
+        if (strncmp(_name, "struct ", 7) == 0) {
+            _name += 7;
+        }
+    }
 
     ~checked_ptr()
     {
         destroy();
+    }
+
+    void reset(T* ptr)
+    {
+        if (_ptr != ptr) {
+            destroy();
+            _ptr = ptr;
+        }
+    }
+
+    void destroy()
+    {
+        if (_ptr != nullptr) {
+            Deleter deleter;
+            deleter(_ptr);
+            _ptr = nullptr;
+        }
+    }
+
+    T* release()
+    {
+        T* ptr = _ptr;
+        _ptr = nullptr;
+        return ptr;
+    }
+
+    T* get() const
+    {
+        return _ptr;
+    }
+
+    bool empty() const
+    {
+        return _ptr == nullptr;
     }
 public:
     T* operator->() const
@@ -55,27 +103,12 @@ public:
 
         return _ptr;
     }
-
-    T* get()
-    {
-        return _ptr;
-    }
-
-    bool empty()
-    {
-        return _ptr == nullptr;
-    }
-protected:
-    void destroy()
-    {
-        if (_ptr != nullptr) {
-            Deleter deleter;
-            deleter(_ptr);
-        }
-    }
 protected:
     T* _ptr;
     const char* _name;
+private:
+    checked_ptr(const checked_ptr& ptr);
+    checked_ptr& operator=(const checked_ptr& ptr);
 };
 
 template<class T, bool B, class D>
@@ -106,34 +139,16 @@ template<class T, bool check_as_parameter = true>
 class checked_release_ptr : public checked_ptr<T, check_as_parameter, checked_ptr_deleter::Release_Deleter<T>>
 {
 public:
-    checked_release_ptr(T* ptr, const char* name = typeid(T).name() + 6) :
+    checked_release_ptr(T* ptr, const char* name = typeid(T).name()) :
         checked_ptr(ptr, name) {}
-
-    void operator=(T* ptr)
-    {
-        destroy();
-        _ptr = ptr;
-    }
-private:
-    checked_release_ptr(const checked_release_ptr& ptr);
-    checked_release_ptr& operator=(const checked_release_ptr& ptr);
 };
 
 template<class T, bool check_as_parameter = true>
 class checked_delete_ptr : public checked_ptr<T, check_as_parameter, checked_ptr_deleter::Default_Deleter<T>>
 {
 public:
-    checked_delete_ptr(T* ptr, const char* name = typeid(T).name() + 6) :
+    checked_delete_ptr(T* ptr, const char* name = typeid(T).name()) :
         checked_ptr(ptr, name) {}
-
-    void operator=(T* ptr)
-    {
-        destroy();
-        _ptr = ptr;
-    }
-private:
-    checked_delete_ptr(const checked_delete_ptr& ptr);
-    checked_delete_ptr& operator=(const checked_delete_ptr& ptr);
 };
 
 template<class T, bool check_as_parameter = true>
@@ -142,9 +157,4 @@ class checked_useonly_ptr : public checked_ptr<T, check_as_parameter, checked_pt
 public:
     checked_useonly_ptr(T* ptr, const char* name = typeid(T).name()) :
         checked_ptr(ptr, name) {}
-
-    void operator=(T* ptr)
-    {
-        _ptr = ptr;
-    }
 };
