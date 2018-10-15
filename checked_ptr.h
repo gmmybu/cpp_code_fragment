@@ -14,7 +14,12 @@ struct Default_Deleter
 template<class T>
 struct Release_Deleter
 {
-    void operator()(T* ptr) { ptr->release(); }
+    void operator()(T* ptr)
+    {
+        if (ptr != nullptr) {
+            ptr->release();
+        }
+    }
 };
 
 template<class T>
@@ -60,11 +65,9 @@ protected:
 
     void destroy()
     {
-        if (_ptr != nullptr) {
-            Deleter deleter;
-            deleter(_ptr);
-            _ptr = nullptr;
-        }
+        Deleter deleter;
+        deleter(_ptr);
+        _ptr = nullptr;
     }
 
     T* release()
@@ -102,8 +105,8 @@ protected:
     T* _ptr;
     const char* _name;
 private:
-    checked_ptr(const checked_ptr& ptr);
-    checked_ptr& operator=(const checked_ptr& ptr);
+    checked_ptr(const checked_ptr&);
+    checked_ptr& operator=(const checked_ptr&);
 };
 
 template<class T, class D>
@@ -113,19 +116,19 @@ bool operator==(const checked_ptr<T, D>& left, std::nullptr_t)
 }
 
 template<class T, class D>
-bool operator==(std::nullptr_t, const checked_ptr<T, D>&& right)
+bool operator==(std::nullptr_t, const checked_ptr<T, D>& right)
 {
     return right.empty();
 }
 
 template<class T, class D>
-bool operator!=(const checked_ptr<T, D>&& left, std::nullptr_t)
+bool operator!=(const checked_ptr<T, D>& left, std::nullptr_t)
 {
     return !left.empty();
 }
 
 template<class T, class D>
-bool operator!=(std::nullptr_t, const checked_ptr<T, D>&& right)
+bool operator!=(std::nullptr_t, const checked_ptr<T, D>& right)
 {
     return !right.empty();
 }
