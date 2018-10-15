@@ -121,4 +121,5 @@ simple wrapper for fast 2D render by DirectX11, it's just modified from DirectX1
 checked_ptr
 
 use it to encapsulate class pointer member variables to avoid pointer mistakes
+
 it generate compile error when you forget initialize pointer and auto destroy it if you forget it
