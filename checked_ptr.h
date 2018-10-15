@@ -153,3 +153,4 @@ public:
     checked_useonly_ptr(T* ptr, const char* name = typeid(T).name()) :
         checked_ptr(ptr, name) {}
 };
+
