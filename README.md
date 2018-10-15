@@ -115,3 +115,17 @@ it depends on https://github.com/fukuchi/libqrencode, converts original one to o
 render_device
 
 simple wrapper for fast 2D render by DirectX11, it's just modified from DirectX11 samples tutorial07
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+checked_ptr
+
+use it as class fields to avoid some ptr mistakes
+it generate compile error when you forget initialize and auto destroy it in case you forget it
+
+
+
+
+
+
+
