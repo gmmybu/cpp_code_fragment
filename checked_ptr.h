@@ -54,7 +54,7 @@ protected:
     {
         destroy();
     }
-
+public:
     void reset(T* ptr)
     {
         if (_ptr != ptr) {
