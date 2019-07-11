@@ -158,7 +158,7 @@ simple wrapper for https://github.com/Tencent/rapidjson, makes it convenient to 
         json_buffer buffer;
         json_writer writer{buffer};
 
-        writer.write_object([](json_writer& w) {
+        writer.write_object([&] {
             w["code"]<<success;
             w["message"]<<"success";
         });
