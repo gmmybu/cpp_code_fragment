@@ -123,3 +123,46 @@ checked_ptr
 use it to encapsulate class pointer member variables to avoid pointer mistakes
 
 it generate compile error when you forget initialize pointer and auto destroy it if you forget it
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+rapidjson.h
+
+simple wrapper for https://github.com/Tencent/rapidjson, makes it convenient to read and write json, example:
+
+struct base
+{
+    int x = 6;
+};
+
+void operator>>(const json_value& json, base& b)
+{
+    json["x"]>>b.x;
+}
+
+enum
+{
+    success = 200
+};
+
+int main()
+{
+    json_document doc;
+    doc.parse("{\"x\":8}");
+
+    base bb;
+    doc>>bb;
+
+    printf("%d\n", bb.x);
+
+    json_buffer buffer;
+    json_writer writer{buffer};
+
+    writer.write_object([](json_writer& w) {
+        w["code"]<<success;
+        w["message"]<<"success";
+    });
+
+    printf("%s", buffer.GetString());
+    return 0;
+}
