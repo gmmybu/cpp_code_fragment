@@ -130,39 +130,39 @@ rapidjson.h
 
 simple wrapper for https://github.com/Tencent/rapidjson, makes it convenient to read and write json, example:
 
-struct base
-{
-    int x = 6;
-};
+    struct base
+    {
+        int x = 6;
+    };
 
-void operator>>(const json_value& json, base& b)
-{
-    json["x"]>>b.x;
-}
+    void operator>>(const json_value& json, base& b)
+    {
+        json["x"]>>b.x;
+    }
 
-enum
-{
-    success = 200
-};
+    enum
+    {
+        success = 200
+    };
 
-int main()
-{
-    json_document doc;
-    doc.parse("{\"x\":8}");
+    int main()
+    {
+        json_document doc;
+        doc.parse("{\"x\":8}");
 
-    base bb;
-    doc>>bb;
+        base bb;
+        doc>>bb;
 
-    printf("%d\n", bb.x);
+        printf("%d\n", bb.x);
 
-    json_buffer buffer;
-    json_writer writer{buffer};
+        json_buffer buffer;
+        json_writer writer{buffer};
 
-    writer.write_object([](json_writer& w) {
-        w["code"]<<success;
-        w["message"]<<"success";
-    });
+        writer.write_object([](json_writer& w) {
+            w["code"]<<success;
+            w["message"]<<"success";
+        });
 
-    printf("%s", buffer.GetString());
-    return 0;
-}
+        printf("%s", buffer.GetString());
+        return 0;
+    }
