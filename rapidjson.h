@@ -57,6 +57,15 @@ public:
         return _value.GetArray();
     }
 
+    template<class Func>
+    void for_each(const Func& func)
+    {
+        for (auto& item : get_array()) {
+            json_value json{item};
+            func(json);
+        }
+    }
+
     rapidjson::Value::ConstObject get_object() const
     {
         json_guarantee(_value.IsObject());
@@ -69,6 +78,13 @@ public:
         rapidjson::Writer<json_buffer> writer{buffer};
         _value.Accept(writer);
         return {buffer.GetString(), buffer.GetLength()};
+    }
+
+    template<class T>
+    operator T() const
+    {
+        T t; *this>>t;
+        return t;
     }
 public:
     const rapidjson::Value& get_value() const
@@ -225,12 +241,6 @@ public:
     {
     }
 
-    json_writer& operator[](const char* key)
-    {
-        _writer.Key(key);
-        return *this;
-    }
-
     rapidjson::Writer<json_buffer>& get_writer()
     {
         return _writer;
@@ -240,24 +250,53 @@ public:
     {
         _writer.RawValue(value.c_str(), value.size(), type);
     }
-
-    template<class Func>
-    void write_object(const Func& func)
-    {
-        _writer.StartObject();
-        func();
-        _writer.EndObject();
-    }
-
-    template<class Func>
-    void write_array(const Func& func)
-    {
-        _writer.StartArray();
-        func();
-        _writer.EndObject();
-    }
 private:
     rapidjson::Writer<json_buffer> _writer;
+};
+
+class json_object_writer
+{
+public:
+    json_object_writer(json_writer& writer) :
+        _writer(writer)
+    {
+        _writer.get_writer().StartObject();
+    }
+
+    ~json_object_writer()
+    {
+        _writer.get_writer().EndObject();
+    }
+
+    json_writer& operator[](const char* key)
+    {
+        return _writer;
+    }
+private:
+    json_writer& _writer;
+private:
+    json_object_writer(const json_object_writer&) = delete;
+    json_object_writer& operator=(const json_object_writer&) = delete;
+};
+
+class json_array_writer
+{
+public:
+    json_array_writer(json_writer& writer) :
+        _writer(writer)
+    {
+        _writer.get_writer().StartArray();
+    }
+
+    ~json_array_writer()
+    {
+        _writer.get_writer().EndArray();
+    }
+private:
+    json_writer& _writer;
+private:
+    json_array_writer(const json_array_writer&) = delete;
+    json_array_writer& operator=(const json_array_writer&) = delete;
 };
 
 inline void operator<<(json_writer& writer, const std::string& val)
@@ -276,6 +315,12 @@ inline void operator<<(json_writer& writer, float num)
     sprintf_s(num_text, "%.2f", num);
     
     writer.get_writer().String(num_text);
+}
+
+inline void operator<<(json_writer& writer, const json_value& val)
+{
+    std::string str = val;
+    writer<<str;
 }
 
 template<class T>
@@ -302,3 +347,7 @@ json_buffer json_serialize(const Func& func)
     func(writer);
     return buffer;
 }
+
+#include "delayed_runner.h"
+
+#define with(...) int dd_make_var(_z) = 0; for (__VA_ARGS__; dd_make_var(_z) < 1; dd_make_var(_z)++)
