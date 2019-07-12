@@ -158,10 +158,10 @@ simple wrapper for https://github.com/Tencent/rapidjson, makes it convenient to 
         json_buffer buffer;
         json_writer writer{buffer};
 
-        writer.write_object([&] {
-            w["code"]<<success;
-            w["message"]<<"success";
-        });
+        with(json_object_writer oo{writer}) {
+            oo["code"]<<success;
+            oo["message"]<<"success";
+        }
 
         printf("%s", buffer.GetString());
         return 0;
