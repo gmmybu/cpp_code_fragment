@@ -61,8 +61,7 @@ public:
     void for_each(const Func& func)
     {
         for (auto& item : get_array()) {
-            json_value json{item};
-            func(json);
+            func(item);
         }
     }
 
@@ -83,7 +82,7 @@ public:
     template<class T>
     operator T() const
     {
-        T t; *this>>t;
+        T t; *this >> t;
         return t;
     }
 public:
@@ -122,17 +121,22 @@ public:
     {
         return json_value{_doc}[key] ;
     }
+
+    operator json_value()
+    {
+        return _doc;
+    }
 private:
     rapidjson::Document _doc;
+public:
+    template<class T>
+    friend void operator>>(const json_document& doc, T& t)
+    {
+        json_value{doc._doc} >> t;
+    }
 };
 
-template<class T>
-void operator>>(const json_document& doc, T& t)
-{
-    json_value{doc.get_document()}>>t;
-}
-
-inline void operator>>(const json_value& json, uint32_t& x)
+inline void operator>>(json_value json, uint32_t& x)
 {
     auto& v = json.get_value();
     if (v.IsUint()) { x = v.GetUint(); return; }
@@ -146,7 +150,7 @@ inline void operator>>(const json_value& json, uint32_t& x)
     json_throw_error();
 }
 
-inline void operator>>(const json_value& json, int32_t& x)
+inline void operator>>(json_value json, int32_t& x)
 {
     auto& v = json.get_value();
     if (v.IsInt())  { x = v.GetInt(); return; }
@@ -160,21 +164,21 @@ inline void operator>>(const json_value& json, int32_t& x)
     json_throw_error();
 }
 
-inline void operator>>(const json_value& json, uint64_t& x)
+inline void operator>>(json_value json, uint64_t& x)
 {
-    auto& val = json.get_value();
-    if (val.IsUint64()) { x = val.GetUint64(); return; }
-    if (val.IsNull())   { x = 0;               return; }
+    auto& v = json.get_value();
+    if (v.IsUint64()) { x = v.GetUint64(); return; }
+    if (v.IsNull())   { x = 0;             return; }
 
-    if (val.IsString()) {
-        if (sscanf_s(val.GetString(), "%I64u", &x) == 1)
+    if (v.IsString()) {
+        if (sscanf_s(v.GetString(), "%I64u", &x) == 1)
             return;
     }
 
     json_throw_error();
 }
 
-inline void operator>>(const json_value& json, float& x)
+inline void operator>>(json_value json, float& x)
 {
     auto& v = json.get_value();
     if (v.IsNumber()) { x = v.GetFloat(); return; }
@@ -188,46 +192,47 @@ inline void operator>>(const json_value& json, float& x)
     json_throw_error();
 }
 
-inline void operator>>(const json_value& json, double& x)
+inline void operator>>(json_value json, double& x)
 {
-    auto& val = json.get_value();
-    if (val.IsNumber()) { x = val.GetDouble(); return; }
-    if (val.IsNull())   { x = 0.0;             return; }
+    auto& v = json.get_value();
+    if (v.IsNumber()) { x = v.GetDouble(); return; }
+    if (v.IsNull())   { x = 0.0;           return; }
     
-    if (val.IsString()) {
-        if (sscanf_s(val.GetString(), "%lf", &x) == 1)
+    if (v.IsString()) {
+        if (sscanf_s(v.GetString(), "%lf", &x) == 1)
             return;
     }
 
     json_throw_error();
 }
 
-inline void operator>>(const json_value& json, bool& x)
+inline void operator>>(json_value json, bool& x)
 {
-    auto& val = json.get_value();
-    if (val.IsBool()) {
-        x = val.GetBool();
+    auto& v = json.get_value();
+    if (v.IsBool()) {
+        x = v.GetBool();
     } else {
         json_throw_error();
     }
 }
 
-inline void operator>>(const json_value& json, std::string& text)
+inline void operator>>(json_value json, std::string& text)
 {
-    auto& val = json.get_value();
-    if (val.IsNull())   { text.clear();           return; }
-    if (val.IsString()) { text = val.GetString(); return; }
-    json_throw_error();
+    auto& v = json.get_value();
+    if (v.IsString()) { text = v.GetString(); return; }
+    if (v.IsNull())   { text.clear();         return; }
+
+    text = json.as_string();
 }
 
 template<class T>
-void operator>>(const json_value& json, std::vector<T>& data)
+void operator>>(json_value json, std::vector<T>& data)
 {
     if (json.get_value().IsObject()) {
-        json["list"]>>data;
+        json["list"] >> data;
     } else {
         for (auto& item : json.get_array()) {
-            T val; json_value{item}>>val;
+            T val; json_value{item} >> val;
             data.push_back(std::move(val));
         }
     }
@@ -246,9 +251,24 @@ public:
         return _writer;
     }
 
-    void write_raw(const std::string& value, rapidjson::Type type)
+    void array(const std::string& value)
     {
-        _writer.RawValue(value.c_str(), value.size(), type);
+        if (value.size() > 0) {
+            _writer.RawValue(value.c_str(), value.size(),
+                rapidjson::kArrayType);
+        } else {
+            _writer.RawValue("[]", 2, rapidjson::kArrayType);
+        }
+    }
+
+    void object(const std::string& value)
+    {
+        if (value.size() > 0) {
+            _writer.RawValue(value.c_str(), value.size(),
+                rapidjson::kObjectType);
+        } else {
+            _writer.RawValue("{}", 2, rapidjson::kObjectType);
+        }
     }
 private:
     rapidjson::Writer<json_buffer> _writer;
@@ -270,6 +290,7 @@ public:
 
     json_writer& operator[](const char* key)
     {
+        _writer.get_writer().Key(key);
         return _writer;
     }
 private:
@@ -291,6 +312,11 @@ public:
     ~json_array_writer()
     {
         _writer.get_writer().EndArray();
+    }
+
+    operator json_writer&()
+    {
+        return _writer;
     }
 private:
     json_writer& _writer;
@@ -317,26 +343,42 @@ inline void operator<<(json_writer& writer, float num)
     writer.get_writer().String(num_text);
 }
 
+inline void operator<<(json_writer& writer, const json_buffer& buffer)
+{
+    writer.get_writer().String(buffer.GetString());
+}
+
 inline void operator<<(json_writer& writer, const json_value& val)
 {
     std::string str = val;
-    writer<<str;
+    writer << str;
 }
 
-template<class T>
-inline void operator<<(json_writer& writer, const T& val)
+template<bool>
+struct json_write_redirector
 {
-    writer.get_writer().String(std::to_string(val).c_str());
-}
+    template<class T>
+    static void write(json_writer& w, const T& t)
+    {
+        json_object_writer oo{w};
+        oo << t;
+    }
+};
+
+template<>
+struct json_write_redirector<true>
+{
+    template<class T>
+    static void write(json_writer& w, const T& t)
+    {
+        w << std::to_string(t);
+    }
+};
 
 template<class T>
-void operator<<(json_writer& writer, const std::vector<T>& val)
+void operator<<(json_writer& w, const T& t)
 {
-    writer.write_array([&](auto&) {
-        for (auto& v : val) {
-            writer<<v;
-        }
-    });
+    json_write_redirector<std::is_fundamental_v<T>>::write(w, t);
 }
 
 template<class Func>
@@ -348,6 +390,20 @@ json_buffer json_serialize(const Func& func)
     return buffer;
 }
 
-#include "delayed_runner.h"
+template<class T>
+void operator<<(json_writer& writer, const std::vector<T>& val)
+{
+    json_array_writer aa{writer};
+    for (auto& v : val) {
+        aa << v;
+    }
+}
 
-#define with(...) int dd_make_var(_z) = 0; for (__VA_ARGS__; dd_make_var(_z) < 1; dd_make_var(_z)++)
+template<class T>
+void operator<<(json_writer& writer, const std::vector<T*>& val)
+{
+    json_array_writer aa{writer};
+    for (auto v : val) {
+        aa << *v;
+    }
+}
