@@ -135,7 +135,7 @@ simple wrapper for https://github.com/Tencent/rapidjson, makes it convenient to 
         int x = 6;
     };
 
-    void operator>>(const json_value& json, base& b)
+    void operator>>(json_value json, base& b)
     {
         json["x"]>>b.x;
     }
@@ -151,16 +151,16 @@ simple wrapper for https://github.com/Tencent/rapidjson, makes it convenient to 
         doc.parse("{\"x\":8}");
 
         base bb;
-        doc>>bb;
+        doc >> bb;
 
         printf("%d\n", bb.x);
 
         json_buffer buffer;
         json_writer writer{buffer};
-
-        with(json_object_writer oo{writer}) {
-            oo["code"]<<success;
-            oo["message"]<<"success";
+        {
+            json_object_writer oo{writer};
+            oo["code"] << success;
+            oo["message"] << "success";
         }
 
         printf("%s", buffer.GetString());
