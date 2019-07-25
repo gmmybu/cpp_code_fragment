@@ -48,7 +48,7 @@ public:
     {
     }
 
-    uint32_t subscribe(func_type&& t)
+    uint32_t subscribe(func_type t)
     {
         if (t == nullptr) return 0;
     
