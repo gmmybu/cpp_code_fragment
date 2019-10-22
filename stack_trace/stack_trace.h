@@ -1,6 +1,6 @@
 #pragma once
 
-// do not call stack_trace_*** in callback
+// do not call stack_trace_* in callback
 typedef void (*stack_trace_visit_callback)(void* ctx, const char* file, const char* func);
 
 extern "C" {
