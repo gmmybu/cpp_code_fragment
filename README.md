@@ -126,6 +126,7 @@ it generate compile error when you forget initialize pointer and auto destroy it
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 rapidjson.h
 
 simple wrapper for https://github.com/Tencent/rapidjson, makes it convenient to read and write json, example:
