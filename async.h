@@ -15,12 +15,10 @@ enum class resume_mode
 using continuation =
     std::function<void(resume_mode, std::string)>;
 
-/////////////////////////////////////////////////////////////////////
-
 struct _place_holder
 {
-    template<class T>
-    void operator()(T&&) const
+    template<class... T>
+    void operator()(T&&...) const
     {
     }
 
@@ -29,101 +27,68 @@ struct _place_holder
     }
 };
 
-// do not throw exception
-template<class T, class Ok, class Err = _place_holder, class Stop = _place_holder>
-class handler
+// donot throw exception
+template<class Ok, class Err=_place_holder, class Stop=_place_holder>
+struct handler
 {
-public:
-    handler(Ok ok, Err err={}, Stop stop={}) :
+    static_assert(std::is_invocable_v<Err, std::runtime_error&>, "bad type, Err");
+    static_assert(std::is_invocable_v<Stop, aaa::resume_mode, std::string>, "bad type, Stop");
+
+    handler(Ok ok, Err err = {}, Stop stop = {}) :
         _ok(std::move(ok)),
         _err(std::move(err)),
         _stop(std::move(stop))
     {
     }
 
-    void handle_success(T t) const
+    template<class T>
+    void handle_success(T&& t)
     {
-        if constexpr(std::is_reference_v<T>) {
+        static_assert(std::is_invocable_v<Ok, T>, "bad type, Ok");
+        if constexpr (std::is_reference_v<T>) {
             _ok(t);
         } else {
             _ok(std::move(t));
         }
     }
 
-    void handle_error(std::runtime_error& err) const
+    void handle_success()
     {
-        _err(err);
-    }
-
-    void handle_stop(resume_mode mode, std::string message) const
-    {
-        _stop(mode, std::move(message));
-    }
-
-    template<class Handler>
-    handler<T, Ok, Handler, Stop> on_error(Handler h) &&
-    {
-        return {std::move(_ok), std::move(h), std::move(_stop)};
-    }
-
-    template<class Handler>
-    handler<T, Ok, Err, Handler> on_stop(Handler h) &&
-    {
-        return {std::move(_ok), std::move(_err), std::move(h)};
-    }
-private:
-    Ok   _ok;
-    Err  _err;
-    Stop _stop;
-};
-
-template<class Ok, class Err, class Stop>
-class handler<void, Ok, Err, Stop>
-{
-public:
-    handler(Ok ok, Err err={}, Stop stop={}) :
-        _ok(std::move(ok)),
-        _err(std::move(err)),
-        _stop(std::move(stop))
-    {
-    }
-
-    void handle_success() const
-    {
+        static_assert(std::is_invocable_v<Ok>, "bad type, Ok");
         _ok();
     }
 
-    void handle_error(std::runtime_error& err) const
+    void handle_error(std::runtime_error& err)
     {
         _err(err);
     }
 
-    void handle_stop(resume_mode mode, std::string message) const
+    void handle_stop(resume_mode mode, std::string message)
     {
         _stop(mode, std::move(message));
     }
 
     template<class Handler>
-    handler<void, Ok, Handler, Stop> on_error(Handler h) &&
+    handler<Ok, Handler, Stop> on_error(Handler h) &&
     {
         return {std::move(_ok), std::move(h), std::move(_stop)};
     }
 
     template<class Handler>
-    handler<void, Ok, Err, Handler> on_stop(Handler h) &&
+    handler<Ok, Err, Handler> on_stop(Handler h) &&
     {
         return {std::move(_ok), std::move(_err), std::move(h)};
     }
-private:
+
     Ok   _ok;
     Err  _err;
     Stop _stop;
 };
 
-template<class T, class Ok>
-handler<T, Ok> on_success(Ok ok)
+template<class Ok>
+handler<Ok> on_success(Ok ok)
 {
-    return handler<T, Ok>{std::move(ok)};
+    return handler<Ok>{std::move(ok)};
 }
 
 }
