@@ -21,10 +21,6 @@ struct _place_holder
     void operator()(T&&...) const
     {
     }
-
-    void operator()() const
-    {
-    }
 };
 
 // donot throw exception
