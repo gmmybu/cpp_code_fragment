@@ -149,7 +149,7 @@ public:
     template<class Ok, class Err, class Stop>
     handler(_Action<Ok, Err, Stop> action)
     {
-        _ptr = std::make_unique<_Handler<T, Ok, Err, Stop>>(std::move(action));
+        _ptr = std::make_shared<_Handler<T, Ok, Err, Stop>>(std::move(action));
     }
 
     void handle_success(T t) const
@@ -171,7 +171,7 @@ public:
         _ptr->handle_stop(mode, std::move(message));
     }
 private:
-    std::unique_ptr<_Handler_Base<T>> _ptr;
+    std::shared_ptr<_Handler_Base<T>> _ptr;
 };
 
 template<>
@@ -181,7 +181,7 @@ public:
     template<class Ok, class Err, class Stop>
     handler(_Action<Ok, Err, Stop> h)
     {
-        _ptr = std::shared_ptr<_Handler<void, Ok, Err, Stop>>(std::move(h));
+        _ptr = std::make_shared<_Handler<void, Ok, Err, Stop>>(std::move(h));
     }
 
     void handle_success() const
