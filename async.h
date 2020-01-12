@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include <stdexcept>
+#include <memory>
 
 namespace aaa {
 
@@ -15,7 +16,9 @@ enum class resume_mode
 using continuation =
     std::function<void(resume_mode, std::string)>;
 
-struct _place_holder
+/////////////////////////////////////////////////////////////////////
+
+struct _Place_Holder
 {
     template<class... T>
     void operator()(T&&...) const
@@ -24,56 +27,26 @@ struct _place_holder
 };
 
 // donot throw exception
-template<class Ok, class Err=_place_holder, class Stop=_place_holder>
-struct handler
+template<class Ok, class Err = _Place_Holder, class Stop = _Place_Holder>
+struct _Action
 {
-    static_assert(std::is_invocable_v<Err, std::runtime_error&>, "bad type, Err");
-    static_assert(std::is_invocable_v<Stop, aaa::resume_mode, std::string>, "bad type, Stop");
-
-    handler(Ok ok, Err err = {}, Stop stop = {}) :
+    _Action(Ok ok, Err err={}, Stop stop={}) :
         _ok(std::move(ok)),
         _err(std::move(err)),
         _stop(std::move(stop))
     {
     }
 
-    template<class T>
-    void handle_success(T&& t)
+    template<class Func>
+    _Action<Ok, Func, Stop> on_error(Func h) &&
     {
-        static_assert(std::is_invocable_v<Ok, T>, "bad type, Ok");
-        if constexpr (std::is_reference_v<T>) {
-            _ok(t);
-        } else {
-            _ok(std::move(t));
-        }
+        return { std::move(_ok), std::move(h), std::move(_stop) };
     }
 
-    void handle_success()
+    template<class Func>
+    _Action<Ok, Err, Func> on_stop(Func h) &&
     {
-        static_assert(std::is_invocable_v<Ok>, "bad type, Ok");
-        _ok();
-    }
-
-    void handle_error(std::runtime_error& err)
-    {
-        _err(err);
-    }
-
-    void handle_stop(resume_mode mode, std::string message)
-    {
-        _stop(mode, std::move(message));
-    }
-
-    template<class Handler>
-    handler<Ok, Handler, Stop> on_error(Handler h) &&
-    {
-        return {std::move(_ok), std::move(h), std::move(_stop)};
-    }
-
-    template<class Handler>
-    handler<Ok, Err, Handler> on_stop(Handler h) &&
-    {
-        return {std::move(_ok), std::move(_err), std::move(h)};
+        return { std::move(_ok), std::move(_err), std::move(h) };
     }
 
     Ok   _ok;
@@ -82,9 +55,151 @@ struct handler
 };
 
 template<class Ok>
-handler<Ok> on_success(Ok ok)
+_Action<Ok> on_success(Ok ok)
 {
-    return handler<Ok>{std::move(ok)};
+    return _Action<Ok>{std::move(ok)};
 }
+
+/////////////////////////////////////////////////////////////////////
+
+template<class T>
+struct _Handler_Base
+{
+    virtual void handle_success(T t) const = 0;
+    virtual void handle_error(std::runtime_error&) const = 0;
+    virtual void handle_stop(aaa::resume_mode, std::string) const = 0;
+};
+
+template<>
+struct _Handler_Base<void>
+{
+    virtual void handle_success() const = 0;
+    virtual void handle_error(std::runtime_error&) const = 0;
+    virtual void handle_stop(aaa::resume_mode, std::string) const = 0;
+};
+
+template<class T, class Ok, class Err, class Stop>
+class _Handler : public _Handler_Base<T>
+{
+    static_assert(std::is_invocable_v<Ok, T>, "bad type, Ok");
+    static_assert(std::is_invocable_v<Err, std::runtime_error&>, "bad type, Err");
+    static_assert(std::is_invocable_v<Stop, aaa::resume_mode, std::string>, "bad type, Stop");
+public:
+    _Handler(_Action<Ok, Err, Stop> action) :
+        _action(std::move(action))
+    {
+    }
+
+    void handle_success(T t) const
+    {
+        if constexpr(std::is_reference_v<T>) {
+            _action._ok(t);
+        } else {
+            _action._ok(std::move(t));
+        }
+    }
+
+    void handle_error(std::runtime_error& err) const
+    {
+        _action._err(err);
+    }
+
+    void handle_stop(resume_mode mode, std::string message) const
+    {
+        _action._stop(mode, std::move(message));
+    }
+private:
+    _Action<Ok, Err, Stop> _action;
+};
+
+template<class Ok, class Err, class Stop>
+class _Handler<void, Ok, Err, Stop> : public _Handler_Base<void>
+{
+    static_assert(std::is_invocable_v<Ok>, "bad type, Ok");
+    static_assert(std::is_invocable_v<Err, std::runtime_error&>, "bad type, Err");
+    static_assert(std::is_invocable_v<Stop, aaa::resume_mode, std::string>, "bad type, Stop");
+public:
+    _Handler(_Action<Ok, Err, Stop> h) :
+        _action(std::move(h))
+    {
+    }
+
+    void handle_success() const
+    {
+        _action._ok();
+    }
+
+    void handle_error(std::runtime_error& err) const
+    {
+        _action._err(err);
+    }
+
+    void handle_stop(resume_mode mode, std::string message) const
+    {
+        _action._stop(mode, std::move(message));
+    }
+private:
+    _Action<Ok, Err, Stop> _action;
+};
+
+template<class T>
+class handler
+{
+public:
+    template<class Ok, class Err, class Stop>
+    handler(_Action<Ok, Err, Stop> action)
+    {
+        _ptr = std::make_unique<_Handler<T, Ok, Err, Stop>>(std::move(action));
+    }
+
+    void handle_success(T t) const
+    {
+        if constexpr(std::is_reference_v<T>) {
+            _ptr->handle_success(t);
+        } else {
+            _ptr->handle_success(std::move(t));
+        }
+    }
+
+    void handle_error(std::runtime_error& err) const
+    {
+        _ptr->handle_error(err);
+    }
+        
+    void handle_stop(aaa::resume_mode mode, std::string message) const
+    {
+        _ptr->handle_stop(mode, std::move(message));
+    }
+private:
+    std::unique_ptr<_Handler_Base<T>> _ptr;
+};
+
+template<>
+class handler<void>
+{
+public:
+    template<class Ok, class Err, class Stop>
+    handler(_Action<Ok, Err, Stop> h)
+    {
+        _ptr = std::shared_ptr<_Handler<void, Ok, Err, Stop>>(std::move(h));
+    }
+
+    void handle_success() const
+    {
+        _ptr->handle_success();
+    }
+
+    void handle_error(std::runtime_error& err)
+    {
+        _ptr->handle_error(err);
+    }
+
+    void handle_stop(aaa::resume_mode mode, std::string message)
+    {
+        _ptr->handle_stop(mode, std::move(message));
+    }
+private:
+    std::shared_ptr<_Handler_Base<void>> _ptr;
+};
 
 }
