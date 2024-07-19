@@ -5,10 +5,6 @@
 #include <future>
 
 namespace co {
-
-template<class T>
-struct task;
-
 namespace internal {
 
 template<class T>
@@ -200,65 +196,7 @@ struct _task_promise<void> : public _task_promise_base<void> {
     }
 };
 
-template<typename... Ts>
-struct get_last_elem_type;
-
-template<typename Last>
-struct get_last_elem_type<Last> {
-    using type = Last;
-};
-
-template <typename Prev, typename ... Last>
-struct get_last_elem_type<Prev, Last...> {
-    using type = get_last_elem_type<Last...>::type;
-};
-
-template<class Func>
-struct get_last_arg_type;
-
-template<class Ret, class ...Args>
-struct get_last_arg_type<Ret(Args...)> {
-    using type = get_last_elem_type<Args...>::type;
-};
-
-template<class Ret, class ...Args>
-struct get_last_arg_type<Ret(*)(Args...)> {
-    using type = get_last_elem_type<Args...>::type;
-};
-
-template<class Ret, class ...Args>
-struct get_last_arg_type<Ret(&)(Args...)> {
-    using type = get_last_elem_type<Args...>::type;
-};
-
-template<class Func>
-struct get_awaiter_type;
-
-template<class Ret, class... Args>
-struct get_awaiter_type<std::function<Ret(Args...)>> {
-    using tuple_type = decltype(std::make_tuple(std::declval<Args>()...));
-    using type = task_awaiter<tuple_type>;
-};
-
-template<class Func>
-struct get_task_param_type;
-
-template<class Ret, class ...Args>
-struct get_task_param_type<task<Ret>(Args...)> {
-    using type = task_awaiter<Ret>;
-};
-
-template<class Ret, class ...Args>
-struct get_task_param_type<task<Ret>(*)(Args...)> {
-    using type = task_awaiter<Ret>;
-};
-
-template<class Ret, class ...Args>
-struct get_task_param_type<task<Ret>(&)(Args...)> {
-    using type = task_awaiter<Ret>;
-};
-
-}
+} // namespace internal
 
 template<class T>
 struct task {
@@ -308,22 +246,43 @@ private:
     handle_type _handle;
 };
 
-template<class Func, class... Args>
-auto call_async(Func&& func, Args&&... args) {
-    using LastArg = internal::get_last_arg_type<Func>::type;
-    using Awaiter = internal::get_awaiter_type<LastArg>::type;
+template<class Type>
+struct _async_task_runner {
+    template<class Func, class... Args>
+    auto operator()(Func&& func, Args&&... args) const {
+        Type waiter{};
+        std::bind(std::forward<Func>(func), std::forward<Args>(args)..., waiter)();
+        return waiter;
+    }
+};
 
-    Awaiter waiter{};
-    func(std::forward<Args>(args)..., waiter);
-    return waiter;
-}
+template<class... Args>
+struct _get_async_awaiter_type {
+    using tuple_type = decltype(std::make_tuple(std::declval<Args>()...));
+    using type = internal::task_awaiter<tuple_type>;
+};
+
+template<class... Args>
+constexpr _async_task_runner<typename _get_async_awaiter_type<Args...>::type> run_async;
+
+template<class Func>
+struct _get_task_param_type;
+
+template<class Ret>
+struct _get_task_param_type<task<Ret>> {
+    using type = internal::task_awaiter<Ret>;
+};
 
 template<class Func, class... Args>
 auto call_coro(Func&& func, Args&&... args) {
-    using Awaiter = internal::get_task_param_type<Func>::type;
+    using TaskType = decltype(
+        std::bind(std::forward<Func>(func), std::forward<Args>(args)...)()
+    );
+
+    using Awaiter = _get_task_param_type<TaskType>::type;
 
     Awaiter waiter{};
-    auto t = func(std::forward<Args>(args)...);
+    auto t = std::bind(std::forward<Func>(func), std::forward<Args>(args)...)();
     t.promise().use_awaiter(waiter.get_state());
     t.resume();
 
@@ -332,10 +291,7 @@ auto call_coro(Func&& func, Args&&... args) {
 
 template<class Func, class... Args>
 auto run_coro(Func&& func, Args&&... args) {
-    using Awaiter = internal::get_task_param_type<Func>::type;
-
-    Awaiter waiter{};
-    auto t = func(std::forward<Args>(args)...);
+    auto t = std::bind(std::forward<Func>(func), std::forward<Args>(args)...)();
     t.promise().use_promise();
 
     auto f = t.future();
