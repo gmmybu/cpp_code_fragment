@@ -257,11 +257,11 @@ int main() {
     std::cout << "cls = " << mc.get() << std::endl;
 
 
-    auto lam2 = [mc](int y) {
-        std::cout << "cls = " << mc.get() << std::endl;
+    auto lam2 = [mc](this auto self, int y) {
+        std::cout << "cls = " << self.mc.get() << std::endl;
         std::string ss = co::run_coro(
             &my_class::run_coro_const,
-            mc.get(),
+            self.mc.get(),
             30
         ).get();
 

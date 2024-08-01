@@ -251,7 +251,7 @@ struct _async_task_runner {
     template<class Func, class... Args>
     auto operator()(Func&& func, Args&&... args) const {
         Type waiter{};
-        std::bind(std::forward<Func>(func), std::forward<Args>(args)..., waiter)();
+        std::invoke(std::forward<Func>(func), std::forward<Args>(args)..., waiter);
         return waiter;
     }
 };
@@ -276,13 +276,13 @@ struct _get_task_param_type<task<Ret>> {
 template<class Func, class... Args>
 auto call_coro(Func&& func, Args&&... args) {
     using TaskType = decltype(
-        std::bind(std::forward<Func>(func), std::forward<Args>(args)...)()
+        std::invoke(std::forward<Func>(func), std::forward<Args>(args)...)
     );
 
     using Awaiter = _get_task_param_type<TaskType>::type;
 
     Awaiter waiter{};
-    auto t = std::bind(std::forward<Func>(func), std::forward<Args>(args)...)();
+    auto t = std::invoke(std::forward<Func>(func), std::forward<Args>(args)...);
     t.promise().use_awaiter(waiter.get_state());
     t.resume();
 
@@ -291,7 +291,7 @@ auto call_coro(Func&& func, Args&&... args) {
 
 template<class Func, class... Args>
 auto run_coro(Func&& func, Args&&... args) {
-    auto t = std::bind(std::forward<Func>(func), std::forward<Args>(args)...)();
+    auto t = std::invoke(std::forward<Func>(func), std::forward<Args>(args)...);
     t.promise().use_promise();
 
     auto f = t.future();
