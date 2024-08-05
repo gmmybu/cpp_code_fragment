@@ -8,9 +8,9 @@ template<class T>
 class object_wrapper;
 
 template<class T>
-class life_cycle final {
+class lifecycle final {
 public:
-    life_cycle(T* obj) : _owner_threads(), _obj(obj) {
+    lifecycle(T* obj) : _owner_threads(), _obj(obj) {
         if (_obj == nullptr) {
             std::abort(); // logic error
         }
@@ -115,16 +115,17 @@ private:
     T* _obj;
 };
 
-// 保护代码片段，单线程使用，建议使用方式
+// usage:
+// 
 // if (auto obj = use_object(lc); obj) {
-//     // 使用obj
+//     // use obj
 // }
 template<class T>
 class object_wrapper {
 public:
-    explicit object_wrapper(std::shared_ptr<life_cycle<T>> lc) : _life_cycle(lc) {
+    explicit object_wrapper(std::shared_ptr<lifecycle<T>> lc) : _lc(lc) {
         _id = std::this_thread::get_id();
-        _obj = _life_cycle->lock(_already_locked);
+        _obj = _lc->lock(_already_locked);
     }
 
     ~object_wrapper() {
@@ -133,7 +134,7 @@ public:
         }
 
         if (_obj) {
-            _life_cycle->unlock(_already_locked);
+            _lc->unlock(_already_locked);
         }
     }
 
@@ -159,13 +160,13 @@ public:
 private:
     std::thread::id _id;
 
-    std::shared_ptr<life_cycle<T>> _life_cycle;
+    std::shared_ptr<lifecycle<T>> _lc;
     bool _already_locked;
 
     T* _obj;
 };
 
 template<class T>
-auto use_object(std::shared_ptr<life_cycle<T>> lc) {
+auto use_object(std::shared_ptr<lifecycle<T>> lc) {
     return object_wrapper<T>{lc};
 }
