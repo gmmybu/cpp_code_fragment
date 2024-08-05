@@ -3,19 +3,21 @@
 #include <condition_variable>
 #include <vector>
 #include <thread>
+#include <stdexcept>
 
-template<class T>
-class object_wrapper;
-
-template<class T>
 class lifecycle final {
 public:
-    lifecycle(T* obj) : _owner_threads(), _obj(obj) {
-        if (_obj == nullptr) {
-            std::abort(); // logic error
-        }
-
+    lifecycle() : _owner_threads() {
         _owner_threads.reserve(32);
+    }
+
+    ~lifecycle() {
+        std::unique_lock<std::mutex> lock{ _mutex };
+        if (_use_count > 0) {
+            // lifecycle `lock` and `unlock` is not paired
+            // dtor should not throw exception, so just abort
+            std::abort();
+        }
     }
 
     void release() {
@@ -38,17 +40,16 @@ public:
         });
     }
 
-private:
-    T* lock(bool& already_locked) {
+    bool lock(bool& already_locked) {
         std::unique_lock<std::mutex> lock{ _mutex };
         if (_released) {
-            return nullptr;
+            return false;
         }
 
         auto pos = find_owner_thread();
         if (pos != _owner_threads.end()) {
             already_locked = true;
-            return _obj;
+            return true;
         }
 
         owner_thread item{};
@@ -56,7 +57,7 @@ private:
         _use_count++;
 
         already_locked = false;
-        return _obj;
+        return true;
     }
 
     void unlock(bool already_locked) {
@@ -67,7 +68,7 @@ private:
         std::unique_lock<std::mutex> lock{ _mutex };
         auto pos = find_owner_thread();
         if (pos == _owner_threads.end()) {
-            std::abort(); // logic error
+            throw std::logic_error{"lifecycle `unlock` isn't paired with `lock` in the same thread"};
         }
 
         if (pos->dec_use_count) {
@@ -95,10 +96,6 @@ private:
 
     std::vector<owner_thread> _owner_threads;
 
-    
-    template<class T>
-    friend class object_wrapper;
-
 private:
     // already locked
     std::vector<owner_thread>::iterator find_owner_thread() {
@@ -110,27 +107,59 @@ private:
             }
         );
     }
+};
+
+template<class T>
+class object_lifecycle {
+public:
+    object_lifecycle(T* obj) : _obj(obj) {
+        if (_obj == nullptr) {
+            throw std::logic_error{ "object_lifecycle obj is nullptr" };
+        }
+    }
+
+    void release() {
+        _lc.release();
+    }
+
+    T* lock(bool& already_locked) {
+        return _lc.lock(already_locked) ? _obj : nullptr;
+    }
+
+    void unlock(bool already_locked) {
+        return _lc.unlock(already_locked);
+    }
 
 private:
+    lifecycle _lc;
     T* _obj;
 };
 
+template<class T>
+auto make_lifecycle(T* t) {
+    return std::make_shared<object_lifecycle<T>>(t);
+}
+
+template<class T>
+using object_lifecycle_ptr = std::shared_ptr<object_lifecycle<T>>;
+
 // usage:
-// 
-// if (auto obj = use_object(lc); obj) {
-//     // use obj
-// }
+//     if (auto obj = use_object(olc); obj) {
+//         // use obj
+//     }
 template<class T>
 class object_wrapper {
 public:
-    explicit object_wrapper(std::shared_ptr<lifecycle<T>> lc) : _lc(lc) {
+    explicit object_wrapper(object_lifecycle_ptr<T> lc) : _lc(lc) {
         _id = std::this_thread::get_id();
         _obj = _lc->lock(_already_locked);
     }
 
     ~object_wrapper() {
         if (std::this_thread::get_id() != _id) {
-            std::abort(); // logic error
+            // object_wrapper ctor and dtor are not in the same thread,
+            // dtor should not throw exception, so just abort
+            std::abort();
         }
 
         if (_obj) {
@@ -139,18 +168,10 @@ public:
     }
 
     operator bool() const {
-        if (std::this_thread::get_id() != _id) {
-            std::abort(); // logic error
-        }
-
         return _obj != nullptr;
     }
 
     T* operator->() const {
-        if (std::this_thread::get_id() != _id) {
-            std::abort(); // logic error
-        }
-
         return _obj;
     }
 
@@ -160,13 +181,13 @@ public:
 private:
     std::thread::id _id;
 
-    std::shared_ptr<lifecycle<T>> _lc;
+    object_lifecycle_ptr<T> _lc;
     bool _already_locked;
 
     T* _obj;
 };
 
 template<class T>
-auto use_object(std::shared_ptr<lifecycle<T>> lc) {
+auto use_object(object_lifecycle_ptr<T> lc) {
     return object_wrapper<T>{lc};
 }
