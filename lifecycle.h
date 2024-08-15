@@ -27,8 +27,10 @@ public:
         auto pos = find_owner_thread();
         if (pos != _owner_threads.end()) {
             // remove current thread use count
-            pos->dec_use_count = false;
-            _use_count--;
+            if (pos->dec_use_count) {
+                pos->dec_use_count = false;
+                _use_count--;
+            }
 
             if (_use_count == 0) {
                 _cond.notify_all();
