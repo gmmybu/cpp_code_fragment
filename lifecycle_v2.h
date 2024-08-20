@@ -182,6 +182,6 @@ private:
 };
 
 template<class T>
-auto use_object(object_lifecycle_ptr<T> lc) {
+auto use_object(object_lifecycle_ptr<T>& lc) {
     return object_wrapper<T>{lc};
 }
