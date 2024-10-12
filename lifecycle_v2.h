@@ -153,7 +153,7 @@ using object_lifecycle_ptr = std::shared_ptr<object_lifecycle<T>>;
 template<class T>
 class object_wrapper {
 public:
-    explicit object_wrapper(object_lifecycle_ptr<T>& lc) : _lc(lc) {
+    explicit object_wrapper(const object_lifecycle_ptr<T>& lc) : _lc(lc) {
         _obj = _lc->lock(_already_locked);
     }
 
@@ -175,13 +175,13 @@ public:
     object_wrapper& operator=(const object_wrapper&) = delete;
 
 private:
-    object_lifecycle_ptr<T>& _lc;
+    object_lifecycle_ptr<T> _lc;
     bool _already_locked;
 
     T* _obj;
 };
 
 template<class T>
-auto use_object(object_lifecycle_ptr<T>& lc) {
+auto use_object(const object_lifecycle_ptr<T>& lc) {
     return object_wrapper<T>{lc};
 }
